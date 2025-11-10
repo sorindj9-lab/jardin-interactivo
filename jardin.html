@@ -1,0 +1,97 @@
+<h1>Mi Jardín Interactivo</h1>
+<p>Monedas: <span id="coins">0</span></p>
+
+<div id="gardenContainer">
+  <div id="garden"></div>
+  <div id="sun"></div>
+</div>
+
+<div>
+  <button onclick="earnCoins()">Recoger monedas</button>
+  <button onclick="buyDecoration('flower')">Comprar Flor (5 monedas)</button>
+  <button onclick="buyDecoration('tree')">Comprar Árbol (10 monedas)</button>
+  <button onclick="buyDecoration('fountain')">Comprar Fuente (20 monedas)</button>
+</div>
+
+<div id="beautyBarContainer">
+  <div id="beautyBar">0%</div>
+</div>
+
+<audio id="coinSound" src="https://www.soundjay.com/misc/sounds/coin-1.mp3"></audio>
+<audio id="buySound" src="https://www.soundjay.com/button/sounds/button-3.mp3"></audio>
+
+<style>
+body { font-family: Arial; text-align: center; margin: 0; padding: 0; }
+#gardenContainer { width: 600px; height: 400px; margin: 20px auto; position: relative; overflow: hidden; border-radius: 15px; border: 3px solid #4caf50; background: linear-gradient(to top, #a0d580, #80c060); }
+.cloud { position: absolute; width: 100px; height: 60px; background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/White_cloud.png/240px-White_cloud.png') no-repeat; background-size: contain; top: 20px; animation: cloudMove linear infinite; }
+@keyframes cloudMove { 0% { left: -120px; } 100% { left: 620px; } }
+#sun { position: absolute; top: 10px; right: 10px; width: 80px; height: 80px; background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sun_symbol.svg/120px-Sun_symbol.svg.png') no-repeat; background-size: cover; }
+.decoration { position: absolute; transition: transform 0.3s ease; animation: sway 3s ease-in-out infinite alternate; cursor: grab; }
+@keyframes sway { 0% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } 100% { transform: rotate(-3deg); } }
+.decoration:hover { transform: scale(1.2); }
+.flower { width: 50px; height: 50px; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Red_rose_flower.jpg/80px-Red_rose_flower.jpg'); background-size: cover; }
+.tree { width: 60px; height: 100px; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Oak_tree_in_summer.jpg/120px-Oak_tree_in_summer.jpg'); background-size: cover; }
+.fountain { width: 60px; height: 60px; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fountain_icon.png/60px-Fountain_icon.png'); background-size: cover; }
+button { margin: 5px; padding: 10px 15px; font-size: 16px; cursor: pointer; border-radius: 8px; border: none; background-color: #4caf50; color: white; }
+button:hover { background-color: #45a049; }
+#beautyBarContainer { width: 600px; height: 25px; border: 2px solid #4caf50; border-radius: 12px; margin: 10px auto; background-color: #e0e0e0; overflow: hidden; }
+#beautyBar { height: 100%; width: 0%; background-color: #ffb74d; text-align: center; line-height: 25px; color: white; font-weight: bold; transition: width 0.5s ease; }
+.coin { width: 20px; height: 20px; position: absolute; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Gold_coin_icon.png/20px-Gold_coin_icon.png'); background-size: cover; pointer-events: none; animation: fall 1s linear forwards; }
+@keyframes fall { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(200px); opacity: 0; } }
+</style>
+
+<script>
+let coins = parseInt(localStorage.getItem('coins')) || 0;
+let beauty = parseInt(localStorage.getItem('beauty')) || 0;
+let savedDecorations = JSON.parse(localStorage.getItem('decorations')) || [];
+document.getElementById('coins').textContent = coins;
+
+function updateBeautyBar(){ const bar=document.getElementById('beautyBar'); bar.style.width=beauty+'%'; bar.textContent=beauty+'%'; }
+updateBeautyBar();
+
+// Restaurar decoraciones
+savedDecorations.forEach(d => addDecoration(d.type,d.x,d.y,false));
+
+// Nubes animadas
+for(let i=0;i<3;i++){ const cloud=document.createElement('div'); cloud.classList.add('cloud'); cloud.style.top=(20+i*50)+'px'; cloud.style.animationDuration=(40+i*10)+'s'; document.getElementById('gardenContainer').appendChild(cloud); }
+
+// Sonidos
+function playSound(id){ const s=document.getElementById(id); s.currentTime=0; s.play(); }
+
+// Monedas
+function earnCoins(){ coins++; document.getElementById('coins').textContent=coins; playSound('coinSound'); createCoinAnimation(); saveData(); }
+function createCoinAnimation(){ const garden=document.getElementById('garden'); const coin=document.createElement('div'); coin.classList.add('coin'); coin.style.left=Math.random()*(garden.clientWidth-20)+'px'; coin.style.top='0px'; garden.appendChild(coin); setTimeout(()=>garden.removeChild(coin),1000); }
+
+// Comprar decoraciones
+function buyDecoration(type){
+  let cost=0,beautyIncrease=0;
+  if(type==='flower'){cost=5; beautyIncrease=5;} else if(type==='tree'){cost=10; beautyIncrease=10;} else if(type==='fountain'){cost=20; beautyIncrease=20;}
+  if(coins>=cost){ coins-=cost; beauty+=beautyIncrease; if(beauty>100)beauty=100; document.getElementById('coins').textContent=coins; updateBeautyBar(); addDecoration(type); playSound('buySound'); saveData(); }
+  else alert("No tienes suficientes monedas");
+}
+
+// Agregar decoraciones arrastrables
+function addDecoration(type,x=null,y=null,save=true){
+  const garden=document.getElementById('garden'); const elem=document.createElement('div'); elem.classList.add('decoration',type);
+  const posX=x!==null?x:Math.random()*(garden.clientWidth-60);
+  const posY=y!==null?y:Math.random()*(garden.clientHeight-60);
+  elem.style.left=posX+'px'; elem.style.top=posY+'px'; garden.appendChild(elem);
+
+  let offsetX=0, offsetY=0, dragging=false;
+
+  elem.addEventListener('mousedown', e => { dragging=true; offsetX=e.offsetX; offsetY=e.offsetY; elem.style.cursor='grabbing'; });
+  elem.addEventListener('mousemove', e => { if(dragging){ let newX=e.clientX-garden.getBoundingClientRect().left-offsetX; let newY=e.clientY-garden.getBoundingClientRect().top-offsetY; newX=Math.max(0,Math.min(newX,garden.clientWidth-elem.offsetWidth)); newY=Math.max(0,Math.min(newY,garden.clientHeight-elem.offsetHeight)); elem.style.left=newX+'px'; elem.style.top=newY+'px'; } });
+  elem.addEventListener('mouseup', e => { if(dragging){ dragging=false; elem.style.cursor='grab'; updateDecorationPosition(elem); saveData(); } });
+  elem.addEventListener('mouseleave', e => { if(dragging){ dragging=false; elem.style.cursor='grab'; updateDecorationPosition(elem); saveData(); } });
+
+  if(save){ savedDecorations.push({type:type,x:posX,y:posY}); localStorage.setItem('decorations',JSON.stringify(savedDecorations)); }
+}
+
+// Actualiza posición de decoración en savedDecorations
+function updateDecorationPosition(elem){
+  const idx=savedDecorations.findIndex(d=>d.type===elem.classList[1] && Math.abs(d.x-parseFloat(elem.style.left))<1 && Math.abs(d.y-parseFloat(elem.style.top))<1);
+  if(idx>=0){ savedDecorations[idx].x=parseFloat(elem.style.left); savedDecorations[idx].y=parseFloat(elem.style.top); }
+}
+
+function saveData(){ localStorage.setItem('coins',coins); localStorage.setItem('beauty',beauty); localStorage.setItem('decorations',JSON.stringify(savedDecorations)); }
+</script>
